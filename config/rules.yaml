@@ -1,0 +1,73 @@
+# Signature-based detection rules
+# Each rule has: id, name, type, description, severity, pattern
+
+signatures:
+  - id: "SIG-001"
+    name: "Nmap Scan Detection"
+    type: "port_scan"
+    description: "Detects Nmap OS detection probe"
+    severity: "medium"
+    protocol: "tcp"
+    pattern:
+      payload_regex: "Nmap|nmap|OS DETECTION"
+      dst_ports: [22, 23, 80, 443, 3389]
+      
+  - id: "SIG-002"
+    name: "Suspicious HTTP Request"
+    type: "web_attack"
+    description: "Common SQL injection attempt"
+    severity: "high"
+    protocol: "tcp"
+    pattern:
+      payload_regex: "(?i)(union.*select|drop.*table|insert.*into|-- |#|'\\s*or\\s*'|'\\s*and\\s*'|admin.*--|';|\\*|exec\\(|script>|<iframe)"
+      dst_ports: [80, 8080, 443]
+      
+  - id: "SIG-003"
+    name: "SMB Brute Force"
+    type: "brute_force"
+    description: "Multiple SMB connection attempts"
+    severity: "medium"
+    protocol: "tcp"
+    pattern:
+      dst_ports: [445]
+      flags: "S"
+      
+  - id: "SIG-004"
+    name: "DNS Tunneling"
+    type: "dns_exfiltration"
+    description: "Unusual DNS query length"
+    severity: "high"
+    protocol: "udp"
+    pattern:
+      dst_ports: [53]
+      payload_regex: "[a-zA-Z0-9]{50,}"
+      
+  - id: "SIG-005"
+    name: "ICMP Flood"
+    type: "dos"
+    description: "ICMP packet flood detection"
+    severity: "high"
+    protocol: "icmp"
+    pattern:
+      length_threshold: 1000  # packets per minute
+
+  - id: "SIG-006"
+    name: "Malware C2 API Beacon"
+    type: "c2_communication"
+    description: "Detects command and control API communication"
+    severity: "critical"
+    protocol: "tcp"
+    pattern:
+      payload_regex: "(?i)(/api/cmd|/beacon\\?id=|/c2|/command|attacker\\.com|c2server)"
+      dst_ports: [80, 443, 8080, 8443]
+
+  - id: "SIG-007"
+    name: "Malware C2 Tunneling"
+    type: "c2_communication"
+    description: "HTTPS tunneling and botnet command execution"
+    severity: "critical"
+    protocol: "tcp"
+    pattern:
+      payload_regex: "(?i)(CONNECT\\s+[a-zA-Z0-9.]*attacker|#botnet|EXECUTE_COMMAND|botnet.*command)"
+      dst_ports: [80, 443, 8080, 8443]
+

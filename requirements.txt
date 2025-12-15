@@ -1,0 +1,22 @@
+# Core dependencies
+scapy==2.5.0
+flask==2.3.3
+flask-socketio==5.3.6
+flask-cors==4.0.0
+pyyaml==6.0.1
+
+
+# Utilities
+psutil==5.9.5
+python-dateutil==2.8.2
+
+# Development and testing
+pytest==7.4.2
+pytest-cov==4.1.0
+black==23.9.1
+flake8==6.1.0
+
+# Optional: Enhanced features
+numpy==1.24.3  # For advanced analytics
+pandas==2.1.1  # For data manipulation
+matplotlib==3.7.2  # For additional visualizations

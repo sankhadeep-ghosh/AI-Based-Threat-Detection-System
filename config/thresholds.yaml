@@ -1,0 +1,23 @@
+# Behavior-based detection thresholds
+# Values are per time_window (seconds)
+
+port_scan:
+  max_ports_per_ip: 10        # Unique ports scanned from single IP
+  time_window: 60             # Time window in seconds
+  severity: "medium"
+  
+brute_force:
+  max_failed_attempts: 5      # Failed TCP SYN attempts
+  time_window: 60
+  target_ports: [22, 23, 3389, 21]  # Common services
+  severity: "high"
+  
+dos:
+  max_packets_per_ip: 1000    # Packets from single IP
+  time_window: 10             # Shorter window for DoS
+  severity: "critical"
+  
+dns_amplification:
+  max_dns_responses: 50       # DNS responses to single IP
+  time_window: 60
+  severity: "medium"

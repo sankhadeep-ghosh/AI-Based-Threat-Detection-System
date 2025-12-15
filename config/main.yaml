@@ -1,0 +1,37 @@
+network:
+  interface: "{9B74AEE2-0015-4BA5-8D73-623B1187EE50}"  # The interface with actual network traffic
+  bpf_filter: "ip"
+  promiscuous: true
+
+packet_capture:
+  method: "pcapy"
+  snaplen: 65535
+  promisc: true
+  timeout_ms: 100
+  interface: "{9B74AEE2-0015-4BA5-8D73-623B1187EE50}"
+  bpf_filter: "ip"
+
+detector:
+  mode: "hybrid"
+  enable_signature_detection: true
+  enable_anomaly_detection: true
+  worker_threads: 4
+
+logging:
+  level: "INFO"
+  file: "logs/ids.log"
+
+dashboard:
+  host: "127.0.0.1"
+  port: 5000
+  enable_web: true
+
+database:
+  path: "data/ids.db"
+
+packet_capture:
+  store_packets: true
+
+storage:
+  enable_persistence: true
+  alert_db: "data/alerts.db"
