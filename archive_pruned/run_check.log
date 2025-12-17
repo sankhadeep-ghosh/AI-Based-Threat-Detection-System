@@ -1,0 +1,71 @@
+2025-12-16 17:23:42,125 - ids.config.config_loader - INFO - ConfigLoader initialized with directory: C:\Users\ghosh\OneDrive\Desktop\project 4th year\AI_based_threat_detection_system\config
+2025-12-16 17:23:42,832 - __main__ - INFO - ============================================================
+2025-12-16 17:23:42,833 - __main__ - INFO - Advanced Intrusion Detection System
+2025-12-16 17:23:42,834 - __main__ - INFO - ============================================================
+2025-12-16 17:23:42,837 - __main__ - INFO - Loaded configuration from config\main.yaml
+2025-12-16 17:23:42,837 - __main__ - INFO - Initializing detection engine...
+2025-12-16 17:23:42,840 - ids.config.config_loader - INFO - Successfully loaded configuration: main.yaml
+2025-12-16 17:23:42,841 - ids.core.packet_capture - INFO - PacketCapture initialized for interface \Device\NPF_{9B74AEE2-0015-4BA5-8D73-623B1187EE50} with filter 'ip' (async_sniffer=True)
+2025-12-16 17:23:42,842 - ids.core.packet_capture - INFO - PacketCapture initialized for interface \Device\NPF_{9B74AEE2-0015-4BA5-8D73-623B1187EE50} with filter 'ip' (async_sniffer=True)
+2025-12-16 17:23:42,847 - ids.config.config_loader - INFO - ConfigLoader initialized with directory: C:\Users\ghosh\OneDrive\Desktop\project 4th year\AI_based_threat_detection_system\config
+2025-12-16 17:23:42,852 - ids.config.config_loader - INFO - Successfully loaded configuration: rules.yaml
+2025-12-16 17:23:42,853 - ids.core.signature_detector - INFO - Loaded 7 signature rules
+2025-12-16 17:23:42,854 - ids.config.config_loader - INFO - ConfigLoader initialized with directory: C:\Users\ghosh\OneDrive\Desktop\project 4th year\AI_based_threat_detection_system\config
+2025-12-16 17:23:42,855 - ids.config.config_loader - INFO - Successfully loaded configuration: thresholds.yaml
+2025-12-16 17:23:42,857 - ids.core.behavior_analyzer - INFO - Successfully loaded behavior thresholds
+2025-12-16 17:23:42,857 - ids.core.behavior_analyzer - INFO - BehaviorAnalyzer initialized with all trackers
+2025-12-16 17:23:42,861 - ids.database.db_manager - INFO - Database initialized at data/ids.db
+2025-12-16 17:23:42,879 - ids.database.db_manager - INFO - Database initialized at data\packets\packets_20251216_115342.db
+2025-12-16 17:23:42,879 - ids.core.detector_engine - INFO - Per-run packet DB enabled: data\packets\packets_20251216_115342.db
+2025-12-16 17:23:42,880 - ids.core.detector_engine - INFO - DetectorEngine initialized | Signature=True | Anomaly=True
+2025-12-16 17:23:42,880 - ids.core.detector_engine - INFO - Starting database initialization...
+2025-12-16 17:23:42,882 - ids.database.db_manager - INFO - Database initialized at data/ids.db
+2025-12-16 17:23:42,882 - ids.core.detector_engine - INFO - Database initialized
+2025-12-16 17:23:42,883 - ids.core.detector_engine - INFO - Setting packet capture callback...
+2025-12-16 17:23:42,883 - ids.core.detector_engine - INFO - Starting packet capture in background...
+2025-12-16 17:23:42,884 - ids.core.packet_capture - INFO - Starting packet capture on interface: \Device\NPF_{9B74AEE2-0015-4BA5-8D73-623B1187EE50}
+2025-12-16 17:23:42,884 - ids.core.detector_engine - INFO - Packet capture initialization started
+2025-12-16 17:23:42,884 - ids.core.packet_capture - INFO - Using filter: ip
+2025-12-16 17:23:42,885 - ids.core.detector_engine - INFO - Starting worker threads...
+2025-12-16 17:23:42,885 - ids.core.packet_capture - INFO - Promiscuous mode: True
+2025-12-16 17:23:42,885 - ids.core.detector_engine - INFO - Creating thread: PacketProcessor
+2025-12-16 17:23:42,886 - ids.core.packet_capture - INFO - Using AsyncSniffer: True
+2025-12-16 17:23:42,886 - ids.core.detector_engine - INFO - Starting thread: PacketProcessor
+2025-12-16 17:23:42,886 - ids.core.packet_capture - INFO - All interfaces from Scapy: ['{F2B3CAFB-5253-40EC-8ED6-A34F03F58D25}', '{2AF8CA7C-4061-42FF-9A67-025CDD82F6B3}', '{C7180809-3C38-4B76-96E3-E84E4585F81B}', '{6EA4BF3C-8D29-459A-8FE9-9B5C68BCD34D}', '{9B74AEE2-0015-4BA5-8D73-623B1187EE50}', '{70138452-2844-41AF-9F44-C4448F68018B}', '{FA424230-6A6B-4AE3-B0B3-CBA072CB680B}', '{B99A4CE6-4E80-4025-8617-CD398F3660C3}', '\\Device\\NPF_Loopback', '{9BDCB4F9-DD40-4472-B67A-A1329F18E7A8}', '{A0D848EC-398E-4EC9-AF61-992D6503777D}', '{CD85B164-A1CE-4101-97B8-B44A78617049}']
+2025-12-16 17:23:42,887 - ids.core.detector_engine - INFO - Thread PacketProcessor started
+2025-12-16 17:23:42,887 - ids.core.packet_capture - INFO - Valid interfaces: ['{F2B3CAFB-5253-40EC-8ED6-A34F03F58D25}', '{2AF8CA7C-4061-42FF-9A67-025CDD82F6B3}', '{C7180809-3C38-4B76-96E3-E84E4585F81B}', '{6EA4BF3C-8D29-459A-8FE9-9B5C68BCD34D}', '{9B74AEE2-0015-4BA5-8D73-623B1187EE50}', '{70138452-2844-41AF-9F44-C4448F68018B}', '{FA424230-6A6B-4AE3-B0B3-CBA072CB680B}', '{B99A4CE6-4E80-4025-8617-CD398F3660C3}', '{9BDCB4F9-DD40-4472-B67A-A1329F18E7A8}', '{A0D848EC-398E-4EC9-AF61-992D6503777D}', '{CD85B164-A1CE-4101-97B8-B44A78617049}']
+2025-12-16 17:23:42,887 - ids.core.detector_engine - INFO - Creating thread: AlertProcessor
+2025-12-16 17:23:42,888 - ids.core.packet_capture - INFO - Available interfaces for capture: ['{F2B3CAFB-5253-40EC-8ED6-A34F03F58D25}', '{2AF8CA7C-4061-42FF-9A67-025CDD82F6B3}', '{C7180809-3C38-4B76-96E3-E84E4585F81B}', '{6EA4BF3C-8D29-459A-8FE9-9B5C68BCD34D}', '{9B74AEE2-0015-4BA5-8D73-623B1187EE50}', '{70138452-2844-41AF-9F44-C4448F68018B}', '{FA424230-6A6B-4AE3-B0B3-CBA072CB680B}', '{B99A4CE6-4E80-4025-8617-CD398F3660C3}', '{9BDCB4F9-DD40-4472-B67A-A1329F18E7A8}', '{A0D848EC-398E-4EC9-AF61-992D6503777D}', '{CD85B164-A1CE-4101-97B8-B44A78617049}']
+2025-12-16 17:23:42,888 - ids.core.detector_engine - INFO - Starting thread: AlertProcessor
+2025-12-16 17:23:42,888 - ids.core.packet_capture - INFO - Starting AsyncSniffer on \Device\NPF_{9B74AEE2-0015-4BA5-8D73-623B1187EE50} with filter 'ip'
+2025-12-16 17:23:42,889 - ids.core.detector_engine - INFO - Thread AlertProcessor started
+2025-12-16 17:23:42,889 - ids.core.detector_engine - INFO - Creating thread: StatsReporter
+2025-12-16 17:23:42,889 - ids.core.packet_capture - INFO - [+] AsyncSniffer started successfully on \Device\NPF_{9B74AEE2-0015-4BA5-8D73-623B1187EE50}
+2025-12-16 17:23:42,890 - ids.core.detector_engine - INFO - Starting thread: StatsReporter
+2025-12-16 17:23:42,890 - ids.core.packet_capture - INFO - [+] Waiting for packets... Listening now
+2025-12-16 17:23:42,891 - ids.core.detector_engine - INFO - Thread StatsReporter started
+2025-12-16 17:23:42,891 - ids.core.detector_engine - INFO - All worker threads started
+2025-12-16 17:23:42,892 - ids.core.detector_engine - INFO - Detector engine initialization complete - worker threads started
+2025-12-16 17:23:42,892 - __main__ - INFO - Detection engine started successfully
+2025-12-16 17:23:42,892 - ids.core.detector_engine - INFO - Worker threads already running, skipping start
+2025-12-16 17:23:42,893 - __main__ - INFO - Worker threads started
+2025-12-16 17:23:42,893 - __main__ - INFO - Initializing dashboard...
+2025-12-16 17:23:42,926 - ids.database.db_manager - INFO - Database initialized at data/ids.db
+2025-12-16 17:23:42,929 - ids.dashboard.app - INFO - DashboardApp initialized
+2025-12-16 17:23:42,930 - ids.core.detector_engine - INFO - Alert callback updated
+2025-12-16 17:23:42,930 - ids.core.detector_engine - INFO - Stats callback updated
+2025-12-16 17:23:42,931 - __main__ - INFO - Dashboard initialized, starting web server...
+2025-12-16 17:23:42,931 - __main__ - INFO - Press CTRL+C to shutdown gracefully
+
+2025-12-16 17:23:42,932 - ids.config.config_loader - WARNING - Config key not found: dashboard.debug
+2025-12-16 17:23:42,932 - __main__ - INFO - Main thread waiting for shutdown signal...
+2025-12-16 17:23:42,932 - ids.dashboard.app - INFO - Starting dashboard server on 127.0.0.1:5000
+ * Serving Flask app 'ids.dashboard.app'
+ * Debug mode: off
+2025-12-16 17:23:42,987 - ids.core.detector_engine - INFO - Packet processor thread started
+2025-12-16 17:23:42,990 - ids.core.detector_engine - INFO - Alert processor thread started
+2025-12-16 17:23:42,992 - ids.core.detector_engine - INFO - Stats reporter thread started
+2025-12-16 17:23:43,273 - ids.database.db_manager - INFO - Packet stored with ID: 1
+2025-12-16 17:23:43,287 - ids.database.db_manager - INFO - Packet stored with ID: 2
+2025-12-16 17:23:43,300 - ids.database.db_manager - INFO - Packet stored with ID: 3
+2025-12-16 17:23:43,311 - ids.database.db_manager - INFO - Packet stored with ID: 4

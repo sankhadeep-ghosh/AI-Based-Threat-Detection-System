@@ -7,6 +7,7 @@ from queue import Queue, Full, Empty
 from threading import Thread, Lock, Event
 from typing import List, Optional, Callable
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, Any, List, Optional, Callable 
 import time
 
@@ -72,18 +73,51 @@ class DetectorEngine:
         promiscuous = net_cfg.get("promiscuous", True)
         filter_exp = net_cfg.get("bpf_filter", None)
 
+        # Logging preference for per-packet terminal output (default true for your request)
+        self.log_packets = config.get("logging", {}).get("log_packets", True)
+
         self.packet_capture = PacketCapture(
             interface=interface,
             promiscuous=promiscuous,
             filter_exp=filter_exp
         )
 
+        # Gather local IPs to determine incoming vs outgoing
+        try:
+            self._local_ips = self._gather_local_ips()
+        except Exception:
+            self._local_ips = set()
+
         # optional detectors
         self.signature_detector = SignatureDetector() if use_signature else None
         self.behavior_analyzer = BehaviorAnalyzer() if use_anomaly else None
 
         self.db_manager = DatabaseManager()
-        
+
+        # Optionally create a separate per-run packet DB (config: storage.per_run_packet_db)
+        storage_cfg = config.get("storage", {}) if isinstance(config, dict) else {}
+        packet_db_dir = storage_cfg.get("packet_db_dir", "data/packets")
+        per_run_packet_db = storage_cfg.get("per_run_packet_db", True)
+        keep_central_copy = storage_cfg.get("keep_central_copy", False)
+        self.keep_central_copy = keep_central_copy
+
+        if per_run_packet_db:
+            ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+            packet_db_path = Path(packet_db_dir) / f"packets_{ts}.db"
+            packet_db_path.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                self.packet_db_manager = DatabaseManager(str(packet_db_path))
+                self.packet_db_path = str(packet_db_path)
+                logger.info(f"Per-run packet DB enabled: {self.packet_db_path}")
+            except Exception as e:
+                logger.error(f"Failed to create per-run packet DB at {packet_db_path}: {e}")
+                # Fallback to using main DB
+                self.packet_db_manager = self.db_manager
+                self.packet_db_path = None
+        else:
+            self.packet_db_manager = self.db_manager
+            self.packet_db_path = None
+
         # Alert callback
         self.alert_callback = alert_callback
         
@@ -161,11 +195,24 @@ class DetectorEngine:
         capture_thread.start()
         # Don't wait for it - let it run in background
         logger.info("Packet capture initialization started")
-        
-        logger.info("Detector engine initialization complete - worker threads will be started separately")
+
+        # Ensure worker threads are running (idempotent)
+        try:
+            self._start_worker_threads()
+        except Exception as e:
+            logger.warning(f"Could not start worker threads automatically: {e}")
+
+        logger.info("Detector engine initialization complete - worker threads started")
     
     def _start_worker_threads(self) -> None:
-        """Start worker threads - can be called separately from initialization."""
+        """Start worker threads - can be called separately from initialization.
+
+        This method is idempotent (will not spawn duplicate threads if already running).
+        """
+        if self._threads:
+            logger.info("Worker threads already running, skipping start")
+            return
+
         logger.info("Starting worker threads...")
         threads_config = [
             (self._packet_processor, "PacketProcessor"),
@@ -236,13 +283,25 @@ class DetectorEngine:
         
         logger.info(f"All {len(self._threads)} worker threads stopped")
         
-        # Close database
+        # Close databases
         try:
-            logger.info("Closing database...")
+            logger.info("Closing main database...")
             self.db_manager.close()
-            logger.info("Database closed")
+            logger.info("Main database closed")
         except Exception as e:
-            logger.error(f"Error closing database: {e}")
+            logger.error(f"Error closing main database: {e}")
+
+        # Close per-run packet DB if separate
+        try:
+            if getattr(self, 'packet_db_manager', None) and self.packet_db_manager is not self.db_manager:
+                logger.info("Closing per-run packet database...")
+                try:
+                    self.packet_db_manager.close()
+                    logger.info("Per-run packet database closed")
+                except Exception as e:
+                    logger.error(f"Error closing per-run packet DB: {e}")
+        except Exception as e:
+            logger.error(f"Error during packet DB shutdown: {e}")
         
         logger.info("Detector engine stopped")
     
@@ -279,14 +338,31 @@ class DetectorEngine:
                 
                 packet_count += 1
                 
-                # Log first 5 packets to confirm processing
-                if packet_count <= 5:
+                # Log packets based on configuration
+                if self.log_packets:
                     src = features.get('source_ip', 'unknown')
                     dst = features.get('dest_ip', 'unknown')
                     proto = features.get('protocol', 'unknown')
-                    logger.info(f"[Processor] Packet {packet_count}: {src} → {dst} ({proto})")
-                elif packet_count % 20 == 0:
-                    logger.info(f"Processor: Handled {packet_count} packets")
+                    src_port = features.get('source_port')
+                    dst_port = features.get('dest_port')
+                    length = features.get('length', features.get('payload_length', 'unknown'))
+                    direction = 'unknown'
+                    try:
+                        if self._is_local_ip(src):
+                            direction = 'outgoing'
+                        elif self._is_local_ip(dst):
+                            direction = 'incoming'
+                    except Exception:
+                        direction = 'unknown'
+                    logger.info(f"[Packet] {direction.upper():8} {src}{(':'+str(src_port)) if src_port else ''} → {dst}{(':'+str(dst_port)) if dst_port else ''} | {proto.upper()} | len={length}")
+                else:
+                    if packet_count <= 5:
+                        src = features.get('source_ip', 'unknown')
+                        dst = features.get('dest_ip', 'unknown')
+                        proto = features.get('protocol', 'unknown')
+                        logger.info(f"[Processor] Packet {packet_count}: {src} → {dst} ({proto})")
+                    elif packet_count % 20 == 0:
+                        logger.info(f"Processor: Handled {packet_count} packets")
                 
                 self._process_packet(features)
                 
@@ -310,21 +386,38 @@ class DetectorEngine:
             with self._stats_lock:
                 self.stats["packets_processed"] += 1
             
-            # Store packet for forensics and linking
+            # Store packet in the packet DB (may be a per-run DB) for forensics and linking
             packet_id = None
             try:
-                packet_id = self.db_manager.store_packet(features)
+                packet_id = self.packet_db_manager.store_packet(features)
             except Exception as e:
-                logger.debug(f"Failed to store packet: {e}")
-            
+                logger.debug(f"Failed to store packet in packet DB: {e}")
+
+            # Optionally also keep a central copy in the main DB
+            if getattr(self, 'keep_central_copy', False) and self.packet_db_manager is not self.db_manager:
+                try:
+                    self.db_manager.store_packet(features)
+                except Exception as e:
+                    logger.debug(f"Failed to store central copy of packet: {e}")
+
+            # Use a reference string for packet linkage if using per-run DB
+            packet_ref = None
+            try:
+                if packet_id and getattr(self, 'packet_db_path', None):
+                    packet_ref = f"{Path(self.packet_db_path).name}:{packet_id}"
+                else:
+                    packet_ref = packet_id
+            except Exception:
+                packet_ref = packet_id
+
             alerts: List[Alert] = []
             
             # Signature-based detection
             if self.signature_detector:
                 sig_alert = self.signature_detector.check_packet(features)
                 if sig_alert:
-                    if packet_id:
-                        sig_alert.packet_id = packet_id
+                    if packet_ref:
+                        sig_alert.packet_id = packet_ref
                     alerts.append(sig_alert)
                     with self._stats_lock:
                         self.stats["signature_alerts"] += 1
@@ -334,8 +427,8 @@ class DetectorEngine:
                 beh_alerts = self.behavior_analyzer.analyze_packet(features)
                 if beh_alerts:
                     for a in beh_alerts:
-                        if packet_id:
-                            a.packet_id = packet_id
+                        if packet_ref:
+                            a.packet_id = packet_ref
                     alerts.extend(beh_alerts)
                     with self._stats_lock:
                         self.stats["behavior_alerts"] += len(beh_alerts)
@@ -463,7 +556,43 @@ class DetectorEngine:
                 
         except Exception as e:
             logger.error(f"Error logging stats: {e}")
-    
+
+    def _gather_local_ips(self) -> set:
+        """Try to discover local IP addresses for direction determination."""
+        ips = set(["127.0.0.1", "::1"])
+        try:
+            import socket
+            hostname = socket.gethostname()
+            try:
+                # Add the primary hostname resolution
+                primary = socket.gethostbyname(hostname)
+                ips.add(primary)
+            except Exception:
+                pass
+            # Add any address families returned by getaddrinfo
+            for res in socket.getaddrinfo(hostname, None):
+                try:
+                    addr = res[4][0]
+                    if addr:
+                        ips.add(addr)
+                except Exception:
+                    continue
+        except Exception:
+            pass
+        return ips
+
+    def _is_local_ip(self, ip: str) -> bool:
+        if not ip:
+            return False
+        try:
+            if ip in self._local_ips:
+                return True
+            # Heuristic private ranges
+            if ip.startswith("10.") or ip.startswith("192.168.") or ip.startswith("172."):
+                return True
+        except Exception:
+            pass
+        return False    
     def register_alert_callback(self, callback: Callable[[Alert], None]) -> None:
         self.alert_callback = callback
     

@@ -36,6 +36,25 @@ class DatabaseManager:
         """
         self.db_path = db_path or get_config("database.path", "data/ids.db")
         self._connection_lock = Lock()
+
+        # Create a persistent write connection to reduce per-insert overhead
+        try:
+            Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
+            self._write_lock = Lock()
+            self._write_conn = sqlite3.connect(
+                self.db_path,
+                check_same_thread=False,
+                timeout=10.0
+            )
+            # Use WAL for better concurrency
+            self._write_conn.execute("PRAGMA journal_mode=WAL")
+            self._write_conn.execute("PRAGMA busy_timeout=5000")
+        except Exception:
+            # If opening a persistent connection fails, fall back to the connection context
+            self._write_conn = None
+            self._write_lock = Lock()
+
+        # Initialize DB schema
         self._init_db()
     
     def _init_db(self) -> None:
@@ -148,6 +167,38 @@ class DatabaseManager:
             Database row ID
         """
         try:
+            params = (
+                alert.rule_id,
+                alert.name,
+                alert.alert_type.value if hasattr(alert.alert_type, 'value') else str(alert.alert_type),
+                alert.severity.value if hasattr(alert.severity, 'value') else str(alert.severity),
+                alert.source_ip,
+                alert.dest_ip,
+                alert.source_port,
+                alert.dest_port,
+                alert.protocol,
+                alert.message,
+                (alert.timestamp.isoformat() if hasattr(alert.timestamp, 'isoformat') else str(alert.timestamp)),
+                alert.confidence,
+                (alert.raw_packet if isinstance(alert.raw_packet, (bytes, bytearray)) else (alert.raw_packet or None)),
+                getattr(alert, 'packet_id', None)
+            )
+
+            if self._write_conn:
+                with self._write_lock:
+                    cursor = self._write_conn.cursor()
+                    cursor.execute("""
+                        INSERT INTO alerts (
+                            rule_id, name, alert_type, severity,
+                            source_ip, dest_ip, source_port, dest_port,
+                            protocol, message, timestamp, confidence, raw_packet, packet_id
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, params)
+                    self._write_conn.commit()
+                    alert_id = cursor.lastrowid
+                    logger.info(f"Alert stored with ID: {alert_id}")
+                    return alert_id
+
             with self.get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
@@ -156,28 +207,11 @@ class DatabaseManager:
                         source_ip, dest_ip, source_port, dest_port,
                         protocol, message, timestamp, confidence, raw_packet, packet_id
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    alert.rule_id,
-                    alert.name,
-                    alert.alert_type.value if hasattr(alert.alert_type, 'value') else str(alert.alert_type),
-                    alert.severity.value if hasattr(alert.severity, 'value') else str(alert.severity),
-                    alert.source_ip,
-                    alert.dest_ip,
-                    alert.source_port,
-                    alert.dest_port,
-                    alert.protocol,
-                    alert.message,
-                    (alert.timestamp.isoformat() if hasattr(alert.timestamp, 'isoformat') else str(alert.timestamp)),
-                    alert.confidence,
-                    (alert.raw_packet if isinstance(alert.raw_packet, (bytes, bytearray)) else (alert.raw_packet or None)),
-                    getattr(alert, 'packet_id', None)
-                ))
-                
+                """, params)
                 conn.commit()
                 alert_id = cursor.lastrowid
-                logger.debug(f"Alert stored with ID: {alert_id}")
+                logger.info(f"Alert stored with ID: {alert_id}")
                 return alert_id
-                
         except Exception as e:
             logger.error(f"Error storing alert: {e}")
             raise
@@ -201,6 +235,28 @@ class DatabaseManager:
             if isinstance(raw_packet, memoryview):
                 raw_packet = bytes(raw_packet)
 
+            # Prefer using persistent write connection for lower latency
+            if self._write_conn:
+                with self._write_lock:
+                    cursor = self._write_conn.cursor()
+                    cursor.execute(
+                        """
+                        INSERT INTO packets (
+                            timestamp, source_ip, dest_ip, source_port,
+                            dest_port, protocol, length, payload, payload_hex, raw_packet
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            timestamp, source_ip, dest_ip, source_port,
+                            dest_port, protocol, length, payload, payload_hex, raw_packet
+                        )
+                    )
+                    self._write_conn.commit()
+                    packet_id = cursor.lastrowid
+                    logger.info(f"Packet stored with ID: {packet_id}")
+                    return packet_id
+
+            # Fallback to per-call connection
             with self.get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute(
@@ -217,7 +273,7 @@ class DatabaseManager:
                 )
                 conn.commit()
                 packet_id = cursor.lastrowid
-                logger.debug(f"Packet stored with ID: {packet_id}")
+                logger.info(f"Packet stored with ID: {packet_id}")
                 return packet_id
         except Exception as e:
             logger.error(f"Error storing packet: {e}")
@@ -370,8 +426,16 @@ class DatabaseManager:
             return {"error": str(e)}
     
     def close(self) -> None:
-        """Close database connections."""
-        logger.info("Database connections closed")
+        """Close database connections and persistent writer if present."""
+        try:
+            if getattr(self, '_write_conn', None):
+                try:
+                    self._write_conn.close()
+                except Exception:
+                    pass
+            logger.info("Database connections closed")
+        except Exception as e:
+            logger.error(f"Error closing database connections: {e}")
     
     def clear_old_alerts(self, days: int = 30) -> int:
         """

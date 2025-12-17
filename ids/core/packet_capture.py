@@ -390,6 +390,12 @@ class PacketCapture:
         self._update_stats()
         logger.info("Capture stopped")
 
+    def get_stats(self) -> Dict[str, Any]:
+        """Return a copy of current capture statistics."""
+        with self._stats_lock:
+            # return a shallow copy to be safe
+            return dict(self.stats)
+
     def _update_stats(self) -> None:
         with self._stats_lock:
             if self._start_time:
@@ -397,7 +403,6 @@ class PacketCapture:
                 if elapsed > 0:
                     self.stats["capture_rate"] = self._packet_count / elapsed
             self.stats["last_reset"] = datetime.now()
-
     def get_stats(self) -> Dict[str, Any]:
         with self._stats_lock:
             self._update_stats()

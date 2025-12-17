@@ -20,6 +20,7 @@ detector:
 logging:
   level: "INFO"
   file: "logs/ids.log"
+  log_packets: true  # Print each packet to terminal (incoming/outgoing)
 
 dashboard:
   host: "127.0.0.1"
@@ -35,3 +36,6 @@ packet_capture:
 storage:
   enable_persistence: true
   alert_db: "data/alerts.db"
+  packet_db_dir: "data/packets"  # directory where per-run packet DBs are created
+  per_run_packet_db: true        # create a new packet DB on each run
+  keep_central_copy: false      # if true, also store packets in the central alerts DB
