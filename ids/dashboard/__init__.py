@@ -2,4 +2,4 @@
 
 from ids.dashboard.app import DashboardApp
 
-__all__ = ['DashboardApp']
+__all__ = ["DashboardApp"]

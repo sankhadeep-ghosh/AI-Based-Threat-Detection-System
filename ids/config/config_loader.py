@@ -16,11 +16,11 @@ logger = setup_logger(__name__)
 
 class ConfigLoader:
     """Thread-safe configuration loader with caching and validation."""
-    
+
     def __init__(self, config_dir: str = "config"):
         """
         Initialize ConfigLoader with configuration directory path.
-        
+
         Args:
             config_dir: Path to configuration directory
         """
@@ -40,26 +40,26 @@ class ConfigLoader:
 
         Args:
             filename: Name of YAML file (e.g., 'main.yaml')
-        
+
         Returns:
             Parsed configuration dictionary
         """
         file_path = self.config_dir / filename
-        
+
         if not file_path.exists():
             logger.error(f"Configuration file not found: {file_path}")
             raise FileNotFoundError(f"Configuration file not found: {file_path}")
-        
+
         try:
-            with open(file_path, 'r', encoding='utf-8') as file:
+            with open(file_path, "r", encoding="utf-8") as file:
                 config = yaml.safe_load(file) or {}
                 logger.info(f"Successfully loaded configuration: {filename}")
                 return config
-        
+
         except yaml.YAMLError as e:
             logger.error(f"YAML parsing error in {filename}: {e}")
             raise
-        
+
         except Exception as e:
             logger.error(f"Unexpected error loading {filename}: {e}")
             raise
@@ -70,9 +70,9 @@ class ConfigLoader:
     def load_json(self, filename: str) -> Dict[str, Any]:
         """Load JSON configuration file."""
         file_path = self.config_dir / filename
-        
+
         try:
-            with open(file_path, 'r', encoding='utf-8') as file:
+            with open(file_path, "r", encoding="utf-8") as file:
                 return json.load(file)
         except Exception as e:
             logger.error(f"Error loading JSON config {filename}: {e}")
@@ -84,23 +84,23 @@ class ConfigLoader:
     def get(self, section: str, default: Any = None) -> Any:
         """
         Get configuration section from main.yaml.
-        
+
         Supports dot-notation access.
         """
         try:
             config = self.load_yaml("main.yaml")
-            keys = section.split('.')
-            
+            keys = section.split(".")
+
             value = config
             for key in keys:
                 value = value[key]
-            
+
             return value
-        
+
         except (KeyError, TypeError):
             logger.warning(f"Config key not found: {section}")
             return default
-        
+
         except Exception as e:
             logger.error(f"Error accessing config key {section}: {e}")
             return default

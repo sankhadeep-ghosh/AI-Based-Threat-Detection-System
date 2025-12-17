@@ -10,13 +10,16 @@ from datetime import datetime
 import platform
 
 from scapy.all import IP, TCP, UDP, ICMP, get_if_list
+
 # try to import AsyncSniffer; some scapy installs have it, some older versions may not
 try:
     from scapy.all import AsyncSniffer
+
     HAS_ASYNC_SNIFFER = True
 except Exception:
     # fallback: use sniff with stop_filter
     from scapy.all import sniff
+
     HAS_ASYNC_SNIFFER = False
 
 from scapy.packet import Packet
@@ -32,13 +35,10 @@ def get_available_interfaces() -> List[str]:
     try:
         all_interfaces = get_if_list()
         logger.info(f"All interfaces from Scapy: {all_interfaces}")
-        
+
         # Filter out loopback and invalid interfaces
-        valid_interfaces = [
-            iface for iface in all_interfaces 
-            if iface and 'loopback' not in iface.lower()
-        ]
-        
+        valid_interfaces = [iface for iface in all_interfaces if iface and "loopback" not in iface.lower()]
+
         logger.info(f"Valid interfaces: {valid_interfaces}")
         return valid_interfaces
     except Exception as e:
@@ -62,7 +62,7 @@ class PacketCapture:
         interface: Optional[str] = None,
         bpf_filter: Optional[str] = None,
         filter_exp: Optional[str] = None,
-        promiscuous: bool = True
+        promiscuous: bool = True,
     ):
         """
         Initialize packet capture engine.
@@ -81,21 +81,21 @@ class PacketCapture:
         # Get interface from param or config
         if not interface:
             interface = get_config("network.interface", None) or get_config("packet_capture.interface", None)
-        
+
         # Get filter from param or config
         if not bpf_filter:
             bpf_filter = get_config("network.bpf_filter", None) or get_config("packet_capture.bpf_filter", None)
-        
+
         # Get promiscuous from param or config
         config_promisc = get_config("network.promiscuous", None)
         if config_promisc is not None:
             promiscuous = config_promisc
-        
+
         # Convert GUID format to \Device\NPF_GUID if needed
         if interface and not interface.startswith("\\Device\\NPF_") and "{" in interface:
             # It's a GUID, convert it
             interface = f"\\Device\\NPF_{interface}"
-        
+
         # If interface not specified, try to auto-detect
         if not interface:
             available = get_available_interfaces()
@@ -115,6 +115,14 @@ class PacketCapture:
         self.bpf_filter = bpf_filter or "ip"
         self.promiscuous = promiscuous
 
+        # Respect global config option for logging each captured packet
+        try:
+            self.log_packets = get_config("logging.log_packets", True)
+            self.packet_log_every = int(get_config("logging.packet_log_every", 1) or 1)
+        except Exception:
+            self.log_packets = True
+            self.packet_log_every = 1
+
         # If using AsyncSniffer, we'll store the sniffer object here
         self._sniffer = None
         # If using fallback sniff in a thread, we'll keep that thread here
@@ -131,7 +139,7 @@ class PacketCapture:
             "packets_captured": 0,
             "packets_dropped": 0,
             "capture_rate": 0.0,  # packets/sec
-            "last_reset": datetime.now()
+            "last_reset": datetime.now(),
         }
 
         logger.info(
@@ -155,7 +163,7 @@ class PacketCapture:
             "packets_captured": 0,
             "packets_dropped": 0,
             "capture_rate": 0.0,  # packets/sec
-            "last_reset": datetime.now()
+            "last_reset": datetime.now(),
         }
 
         logger.info(
@@ -187,62 +195,66 @@ class PacketCapture:
             "timestamp": datetime.now(),
             "raw_packet": bytes(packet),
             "protocol": "unknown",
-            "length": len(packet)
+            "length": len(packet),
         }
 
         try:
             # Extract IP layer info
             if IP in packet:
-                features.update({
-                    "source_ip": packet[IP].src,
-                    "dest_ip": packet[IP].dst,
-                    "ip_version": packet[IP].version,
-                    "ttl": packet[IP].ttl,
-                    "protocol_num": packet[IP].proto
-                })
+                features.update(
+                    {
+                        "source_ip": packet[IP].src,
+                        "dest_ip": packet[IP].dst,
+                        "ip_version": packet[IP].version,
+                        "ttl": packet[IP].ttl,
+                        "protocol_num": packet[IP].proto,
+                    }
+                )
 
                 # Determine transport protocol
                 if TCP in packet:
-                    features.update({
-                        "protocol": "tcp",
-                        "source_port": packet[TCP].sport,
-                        "dest_port": packet[TCP].dport,
-                        "tcp_flags": str(packet[TCP].flags),
-                        "sequence": packet[TCP].seq,
-                        "acknowledgement": packet[TCP].ack,
-                        "payload_length": len(packet[TCP].payload)
-                    })
+                    features.update(
+                        {
+                            "protocol": "tcp",
+                            "source_port": packet[TCP].sport,
+                            "dest_port": packet[TCP].dport,
+                            "tcp_flags": str(packet[TCP].flags),
+                            "sequence": packet[TCP].seq,
+                            "acknowledgement": packet[TCP].ack,
+                            "payload_length": len(packet[TCP].payload),
+                        }
+                    )
 
                     try:
                         payload = bytes(packet[TCP].payload)
-                        features["payload"] = payload.decode('utf-8', errors='ignore')
+                        features["payload"] = payload.decode("utf-8", errors="ignore")
                         features["payload_hex"] = payload.hex()
                     except Exception:
                         features["payload"] = ""
                         features["payload_hex"] = ""
 
                 elif UDP in packet:
-                    features.update({
-                        "protocol": "udp",
-                        "source_port": packet[UDP].sport,
-                        "dest_port": packet[UDP].dport,
-                        "payload_length": len(packet[UDP].payload)
-                    })
+                    features.update(
+                        {
+                            "protocol": "udp",
+                            "source_port": packet[UDP].sport,
+                            "dest_port": packet[UDP].dport,
+                            "payload_length": len(packet[UDP].payload),
+                        }
+                    )
 
                     try:
                         payload = bytes(packet[UDP].payload)
-                        features["payload"] = payload.decode('utf-8', errors='ignore')
+                        features["payload"] = payload.decode("utf-8", errors="ignore")
                         features["payload_hex"] = payload.hex()
                     except Exception:
                         features["payload"] = ""
                         features["payload_hex"] = ""
 
                 elif ICMP in packet:
-                    features.update({
-                        "protocol": "icmp",
-                        "icmp_type": packet[ICMP].type,
-                        "icmp_code": packet[ICMP].code
-                    })
+                    features.update(
+                        {"protocol": "icmp", "icmp_type": packet[ICMP].type, "icmp_code": packet[ICMP].code}
+                    )
 
             else:
                 features["source_ip"] = "unknown"
@@ -262,12 +274,32 @@ class PacketCapture:
             with self._stats_lock:
                 self._packet_count += 1
                 self.stats["packets_captured"] += 1
-                
-                # Log every packet initially, then reduce frequency
+
+# Log captured packets to the terminal when enabled in configuration.
+            if self.log_packets:
+                # Allow logging frequency control (every Nth packet)
+                try:
+                    if self.packet_log_every <= 1 or (self._packet_count % self.packet_log_every == 0):
+                        try:
+                            logger.info(
+                                f"[Packet {self._packet_count}] {features.get('source_ip', 'unknown')} -> {features.get('dest_ip', 'unknown')} ({features.get('protocol', 'unknown').upper()}) | len={features.get('length', 'unknown')}")
+                        except Exception:
+                            logger.info("[Packet] captured (details unavailable)")
+                except Exception:
+                    # If packet_log_every is misconfigured, fall back to logging every packet
+                    try:
+                        logger.info(
+                            f"[Packet {self._packet_count}] {features.get('source_ip', 'unknown')} -> {features.get('dest_ip', 'unknown')} ({features.get('protocol', 'unknown').upper()}) | len={features.get('length', 'unknown')}")
+                    except Exception:
+                        logger.info("[Packet] captured (details unavailable)")
                 if self._packet_count <= 10:
-                    logger.info(f"[Packet {self._packet_count}] {features.get('source_ip', 'unknown')} → {features.get('dest_ip', 'unknown')} ({features.get('protocol', 'unknown').upper()})")
+                    logger.debug(
+                        f"[Packet {self._packet_count}] {features.get('source_ip', 'unknown')} -> {features.get('dest_ip', 'unknown')} ({features.get('protocol', 'unknown').upper()})"
+                    )
                 elif self._packet_count % 20 == 0:
-                    logger.info(f"[Captured {self._packet_count} packets] Latest: {features.get('source_ip', 'unknown')} → {features.get('dest_ip', 'unknown')}")
+                    logger.debug(
+                        f"[Captured {self._packet_count} packets] Latest: {features.get('source_ip', 'unknown')} -> {features.get('dest_ip', 'unknown')}"
+                    )
 
             if self._packet_callback:
                 try:
@@ -305,17 +337,17 @@ class PacketCapture:
             try:
                 iface_str = self.interface if self.interface else "auto-detect"
                 logger.info(f"Starting AsyncSniffer on {iface_str} with filter '{self.bpf_filter}'")
-                
+
                 kwargs = {
                     "filter": self.bpf_filter,
                     "prn": self._packet_handler,
                     "store": False,
-                    "promisc": self.promiscuous
+                    "promisc": self.promiscuous,
                 }
-                
+
                 if self.interface:
                     kwargs["iface"] = self.interface
-                
+
                 self._sniffer = AsyncSniffer(**kwargs)
                 self._sniffer.start()
                 logger.info(f"[+] AsyncSniffer started successfully on {iface_str}")
@@ -329,22 +361,23 @@ class PacketCapture:
 
     def _start_threaded_sniff(self) -> None:
         """Fallback sniff if AsyncSniffer fails."""
+
         def target():
             try:
                 iface_str = self.interface if self.interface else "auto-detect"
                 logger.info(f"Threaded sniff starting on {iface_str}")
-                
+
                 kwargs = {
                     "filter": self.bpf_filter,
                     "prn": self._packet_handler,
                     "store": get_config("packet_capture.store_packets", False),
                     "promisc": self.promiscuous,
-                    "stop_filter": lambda _: not self._is_running
+                    "stop_filter": lambda _: not self._is_running,
                 }
-                
+
                 if self.interface:
                     kwargs["iface"] = self.interface
-                
+
                 sniff(**kwargs)
                 logger.info("Threaded sniff completed normally")
             except Exception as e:
@@ -353,11 +386,7 @@ class PacketCapture:
                 self._is_running = False
                 logger.info("Threaded sniff thread exiting")
 
-        self._capture_thread = Thread(
-            target=target,
-            name="PacketCaptureThread",
-            daemon=False
-        )
+        self._capture_thread = Thread(target=target, name="PacketCaptureThread", daemon=False)
         self._capture_thread.start()
         iface_str = self.interface if self.interface else "auto-detect"
         logger.info(f"[+] Threaded sniff started on {iface_str}")
@@ -403,6 +432,7 @@ class PacketCapture:
                 if elapsed > 0:
                     self.stats["capture_rate"] = self._packet_count / elapsed
             self.stats["last_reset"] = datetime.now()
+
     def get_stats(self) -> Dict[str, Any]:
         with self._stats_lock:
             self._update_stats()

@@ -15,6 +15,7 @@ from ids.models.alert import Alert, AlertSeverity, AlertType
 
 logger = setup_logger(__name__)
 
+
 class SignatureDetector:
     """
     Signature-based threat detection engine.
@@ -33,11 +34,7 @@ class SignatureDetector:
         self.rules: List[Dict[str, Any]] = []
         self._compiled_regexes: Dict[str, re.Pattern] = {}
 
-        self.stats = {
-            "total_checks": 0,
-            "matches_found": 0,
-            "rules_loaded": 0
-        }
+        self.stats = {"total_checks": 0, "matches_found": 0, "rules_loaded": 0}
 
         self._load_rules()
 
@@ -50,9 +47,7 @@ class SignatureDetector:
                 pattern = rule.get("pattern", {})
                 if "payload_regex" in pattern:
                     try:
-                        self._compiled_regexes[rule["id"]] = re.compile(
-                            pattern["payload_regex"], re.IGNORECASE
-                        )
+                        self._compiled_regexes[rule["id"]] = re.compile(pattern["payload_regex"], re.IGNORECASE)
                     except re.error as e:
                         logger.error(f"Invalid regex in rule {rule['id']}: {e}")
                         self.rules.remove(rule)
@@ -88,7 +83,7 @@ class SignatureDetector:
         rule_ports = rule.get("pattern", {}).get("dst_ports", [])
         if not rule_ports:
             return True
-        
+
         dest_port = features.get("dest_port")
         return dest_port in rule_ports
 
@@ -96,7 +91,7 @@ class SignatureDetector:
         expected = rule.get("protocol")
         if not expected:
             return True
-        
+
         actual = features.get("protocol", "").lower()
         return actual == expected.lower()
 
@@ -104,7 +99,7 @@ class SignatureDetector:
         expected = rule.get("pattern", {}).get("flags")
         if not expected:
             return True
-        
+
         flags = features.get("tcp_flags", "")
         return expected in flags
 
@@ -164,7 +159,7 @@ class SignatureDetector:
             "brute_force": AlertType.BRUTE_FORCE,
             "dos": AlertType.DOS,
             "web_attack": AlertType.WEB_ATTACK,
-            "dns_exfiltration": AlertType.DNS_EXFILTRATION
+            "dns_exfiltration": AlertType.DNS_EXFILTRATION,
         }
         return mapping.get(rule_type, AlertType.SIGNATURE_MATCH)
 

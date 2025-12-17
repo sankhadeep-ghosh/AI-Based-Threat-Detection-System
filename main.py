@@ -25,9 +25,9 @@ _shutdown_lock = threading.Lock()
 
 def signal_handler(sig, frame):
     """Handle SIGINT (CTRL+C) for graceful shutdown."""
-    logger.info("\n" + "="*60)
+    logger.info("\n" + "=" * 60)
     logger.info("CTRL+C detected - initiating graceful shutdown...")
-    logger.info("="*60)
+    logger.info("=" * 60)
     with _shutdown_lock:
         # Immediately stop the dashboard to unblock the server
         if _dashboard:
@@ -58,7 +58,7 @@ def load_config(path: str = "config/main.yaml"):
 def main():
     """Main entry point - orchestrate engine and dashboard."""
     global _detector_engine, _dashboard
-    
+
     logger.info("=" * 60)
     logger.info("Advanced Intrusion Detection System")
     logger.info("=" * 60)
@@ -80,12 +80,12 @@ def main():
             config=config,
             use_signature=True,
             use_anomaly=True,
-            alert_callback=None  # We'll set this after dashboard is created
+            alert_callback=None,  # We'll set this after dashboard is created
         )
         _detector_engine = detector_engine
         detector_engine.start()
         logger.info("Detection engine started successfully")
-        
+
         # Start worker threads (packet processing, alert handling, stats reporting)
         detector_engine._start_worker_threads()
         logger.info("Worker threads started")
@@ -94,23 +94,23 @@ def main():
         logger.info("Initializing dashboard...")
         dashboard = DashboardApp(detector_engine)
         _dashboard = dashboard
-        
+
         # Set alert callback so dashboard can broadcast alerts
         detector_engine.set_alert_callback(dashboard.broadcast_alert)
-        
+
         # Set stats callback so dashboard can broadcast stats in real-time
         detector_engine.set_stats_callback(dashboard.broadcast_stats)
-        
+
         logger.info("Dashboard initialized, starting web server...")
         logger.info("Press CTRL+C to shutdown gracefully\n")
-        
+
         # Run dashboard in a thread so CTRL+C can interrupt it
         def run_dashboard():
             try:
                 dashboard.run(
                     host=config.get("dashboard", {}).get("host", "0.0.0.0"),
                     port=config.get("dashboard", {}).get("port", 5000),
-                    debug=config.get("dashboard", {}).get("debug", False)
+                    debug=config.get("dashboard", {}).get("debug", False),
                 )
             except KeyboardInterrupt:
                 logger.info("Dashboard interrupted")
@@ -123,7 +123,7 @@ def main():
 
         dashboard_thread = threading.Thread(target=run_dashboard, daemon=False, name="DashboardThread")
         dashboard_thread.start()
-    
+
         # Wait for shutdown signal
         logger.info("Main thread waiting for shutdown signal...")
         while not _shutdown_event.is_set():
@@ -163,9 +163,9 @@ def main():
             if dashboard_thread.is_alive():
                 logger.warning("Dashboard thread did not terminate gracefully")
 
-        logger.info("="*60)
+        logger.info("=" * 60)
         logger.info("Shutdown complete - goodbye!")
-        logger.info("="*60)
+        logger.info("=" * 60)
 
 
 if __name__ == "__main__":
@@ -176,7 +176,7 @@ if __name__ == "__main__":
         signal.signal(signal.SIGTERM, signal_handler)
     except (ValueError, RuntimeError) as e:
         logger.warning(f"Could not register signal handlers: {e}")
-    
+
     try:
         main()
     except KeyboardInterrupt:

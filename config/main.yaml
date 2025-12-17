@@ -21,6 +21,7 @@ logging:
   level: "INFO"
   file: "logs/ids.log"
   log_packets: true  # Print each packet to terminal (incoming/outgoing)
+  packet_log_every: 1  # Log every Nth captured packet when per-packet logging is enabled (1 = every packet)
 
 dashboard:
   host: "127.0.0.1"
