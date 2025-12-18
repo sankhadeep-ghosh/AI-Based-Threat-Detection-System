@@ -13,6 +13,7 @@ import time
 from ids.utils.logger import setup_logger
 from ids.core.detector_engine import DetectorEngine
 from ids.dashboard.app import DashboardApp
+from ids.core.file_scanner import FileScanner
 
 logger = setup_logger(__name__)
 
@@ -103,7 +104,17 @@ def main():
 
         logger.info("Dashboard initialized, starting web server...")
         logger.info("Press CTRL+C to shutdown gracefully\n")
+        # --- TEST FILE SCAN ---
+        logger.info("Scanning test Python file...")
 
+        scanner = FileScanner()
+        result = scanner.scan_file("test_malicious.py")
+
+        if result["status"] == "malicious":
+            logger.warning("⚠️ MALICIOUS FILE DETECTED")
+            logger.warning(result)
+        else:
+            logger.info("✅ File is clean") 
         # Run dashboard in a thread so CTRL+C can interrupt it
         def run_dashboard():
             try:
